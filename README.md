@@ -10,3 +10,4 @@ runs in Infectio to realistic looking videos of virus spread in plaque experieme
 # To Do
 
 # References
+reference for pix2pix paper [Image-to-Image Translation with Conditional Adversarial Networks](https://arxiv.org/pdf/1611.07004.pdf)

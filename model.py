@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from torchinfo import summary
+
 
 
 class CNNBlock(nn.Module):
@@ -110,19 +112,21 @@ class Generator(nn.Module):
         return self.final_up(torch.cat([up7, d1],1))
 
 if __name__ == "__main__":
-    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
     print(device)
     def test_disc():
         x = torch.randn((1,3,256,256))
         y = torch.randn((1,3,256,256))
-        Model = Discriminator(in_channels=3)
-        pred = Model(x,y)
+        model = Discriminator(in_channels=3)
+        summary(model, input_size=[(1, 3, 256, 256), (1, 3, 256, 256)])
+        pred = model(x,y)
         print(pred.shape)
 
 
     def test_gen():
         x = torch.randn((1, 3, 256, 256))
         model = Generator(in_channels=3, features=64)
+        summary(model, input_size=(1, 3, 256, 256))
         preds = model(x)
         print(preds.shape)
 
