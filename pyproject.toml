@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "infectio-photorealism"
+version = "0.1.0"
+description = "Pix2Pix model for infectio"
+authors = ["ashkan <ashkan.mokarian@gmail.com>"]
+readme = "README.md"
+packages = [{include = "infectio_photorealism"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+torch = "^2.0.1"
+torchvision = "^0.15.2"
+tifffile = "^2023.7.18"
+pandas = "^2.0.3"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.25.0"
+torchinfo = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
