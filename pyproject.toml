@@ -12,6 +12,7 @@ torch = "^2.0.1"
 torchvision = "^0.15.2"
 tifffile = "^2023.7.18"
 pandas = "^2.0.3"
+tqdm = "^4.65.0"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.25.0"

@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from model import Discriminator, Generator
-from data.sat2map_data import Sattelite2Map_Data
+from model.model import Discriminator, Generator
+from data.plaque_data import InfSpots2Plaque_Data
 from utils import save_checkpoint, load_checkpoint, save_some_examples
 import config
 
@@ -51,8 +51,8 @@ def train(netG, netD, train_dl, optimG, optimD, L1_Loss, BCE_Loss):
 
 
 def main():
-    netD = Discriminator(in_channels=3).to(config.device)
-    netG = Generator(in_channels=3).to(config.device)
+    netD = Discriminator(in_channels=1).to(config.device)
+    netG = Generator(in_channels=1).to(config.device)
     optimD = torch.optim.Adam(
         netD.parameters(), lr=config.LEARNING_RATE, betas=(config.BETA1, 0.999)
     )
@@ -62,7 +62,7 @@ def main():
     BCE_Loss = nn.BCEWithLogitsLoss()
     L1_Loss = nn.L1Loss()
 
-    train_dataset = Sattelite2Map_Data(config.TRAIN_DIR, train=True)
+    train_dataset = InfSpots2Plaque_Data(config.TRAIN_DIR, train=True)
     train_dl = DataLoader(
         train_dataset,
         batch_size=config.BATCH_SIZE,
@@ -70,7 +70,7 @@ def main():
         num_workers=config.NUM_WORKERS,
         pin_memory=True,
     )
-    val_dataset = Sattelite2Map_Data(config.VAL_DIR, train=False)
+    val_dataset = InfSpots2Plaque_Data(config.VAL_DIR, train=False)
     val_dl = DataLoader(
         val_dataset,
         batch_size=config.BATCH_SIZE,

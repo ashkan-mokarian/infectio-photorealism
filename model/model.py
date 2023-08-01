@@ -188,7 +188,6 @@ class Generator(nn.Module):
 
     def forward(self, x):
         d1 = self.initial_down(x)
-        print(d1.shape)
         d2 = self.down1(d1)
         d3 = self.down2(d2)
         d4 = self.down3(d3)
