@@ -6,6 +6,7 @@ import numpy as np
 
 import torch
 from torch.utils.data import Dataset, DataLoader
+import torchvision.transforms.functional as TF
 
 from model.model import Generator
 from data.plaque_data import InfSpots2Plaque_Data
@@ -31,7 +32,9 @@ class InfSpotsCSV_Data(Dataset):
         )
         spots = torch.zeros((512, 672), dtype=torch.float32)
         spots[pos[:, 1], pos[:, 0]] = 1
-        return spots.unsqueeze(0)
+        spots = spots.unsqueeze(0)
+        spots = TF.resize(spots, size=(512, 512), antialias=True)
+        return spots
 
 
 def predict(netg, csv_file, output_tif):
@@ -52,6 +55,7 @@ def predict(netg, csv_file, output_tif):
         for i, x in enumerate(dataloader):
             x = x.to(config.device)
             pred = netg(x)
+            pred = TF.resize(pred, size=(512, 672))
             pred = pred.squeeze(1).cpu().numpy()
             pred = (pred * 255).astype("uint8")
             all_frames.append(pred)
@@ -60,7 +64,9 @@ def predict(netg, csv_file, output_tif):
 
 
 if __name__ == "__main__":
-    checkpoint_file = "./output/plaques/ckpts/gen.pth.tar"
+    from PIL import Image
+
+    checkpoint_file = "./output/plaques/ckpts/gen-80.pth.tar"
     input_csv = "./dataset/M061/val/M061_14.csv"
     gt_tif = "./dataset/M061/val/M061_14.tif"
     output_tif = "./output/plaques/evaluate/M061_14.tif"
@@ -73,11 +79,13 @@ if __name__ == "__main__":
     predict(netg, input_csv, output_tif)
 
     # Concatenate it with gt tif and compare their difference too
-    gt_img = tifffile.imread(gt_tif)
-    pred_img = tifffile.imread(output_tif)
+    gt_img = tifffile.imread(gt_tif).swapaxes(1, 2)
+    pred_img = tifffile.imread(output_tif).swapaxes(1, 2)
     diff = np.abs(np.subtract(gt_img.astype("int32"), pred_img.astype("int32")))
     evaluate_img = np.concatenate(
         [gt_img, pred_img, diff.astype("uint8")],
-        axis=1,
+        axis=2,
     )
-    tifffile.imwrite(output_tif, evaluate_img)
+    tifffile.imwrite(output_tif.format("pred"), evaluate_img)
+    # tifffile.imwrite(output_tif.format("diff"), diff)
+    print("Finished!")

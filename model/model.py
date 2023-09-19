@@ -114,11 +114,8 @@ class Generator(nn.Module):
                 features,
                 kernel_size=4,
                 stride=2,
-                padding=(
-                    1,
-                    49,
-                ),  # 1 for getting 2x downsampling and 48 for reasons above
-                padding_mode="zeros",
+                padding=1,
+                padding_mode="reflect",
             ),
             nn.LeakyReLU(0.2),
         )  # 256 x 384
@@ -142,6 +139,9 @@ class Generator(nn.Module):
         self.down6 = UNETBlock(
             features * 8, features * 8, down=True, act="leaky", use_dropout=False
         )  # 4 X 6
+        self.down7 = UNETBlock(
+            features * 8, features * 8, down=True, act="leaky", use_dropout=False
+        )  # 2 X 6
 
         # Bottleneck
         self.bottleneck = nn.Sequential(
@@ -170,12 +170,15 @@ class Generator(nn.Module):
             features * 8 * 2, features * 8, down=False, act="relu", use_dropout=False
         )
         self.up5 = UNETBlock(
-            features * 8 * 2, features * 4, down=False, act="relu", use_dropout=False
+            features * 8 * 2, features * 8, down=False, act="relu", use_dropout=False
         )
         self.up6 = UNETBlock(
-            features * 4 * 2, features * 2, down=False, act="relu", use_dropout=False
+            features * 8 * 2, features * 4, down=False, act="relu", use_dropout=False
         )
         self.up7 = UNETBlock(
+            features * 4 * 2, features * 2, down=False, act="relu", use_dropout=False
+        )
+        self.up8 = UNETBlock(
             features * 2 * 2, features, down=False, act="relu", use_dropout=False
         )
 
@@ -194,18 +197,20 @@ class Generator(nn.Module):
         d5 = self.down4(d4)
         d6 = self.down5(d5)
         d7 = self.down6(d6)
+        d8 = self.down7(d7)
 
-        bottleneck = self.bottleneck(d7)
+        bottleneck = self.bottleneck(d8)
 
         up1 = self.up1(bottleneck)
-        up2 = self.up2(torch.cat([up1, d7], 1))
-        up3 = self.up3(torch.cat([up2, d6], 1))
-        up4 = self.up4(torch.cat([up3, d5], 1))
-        up5 = self.up5(torch.cat([up4, d4], 1))
-        up6 = self.up6(torch.cat([up5, d3], 1))
-        up7 = self.up7(torch.cat([up6, d2], 1))
+        up2 = self.up2(torch.cat([up1, d8], 1))
+        up3 = self.up3(torch.cat([up2, d7], 1))
+        up4 = self.up4(torch.cat([up3, d6], 1))
+        up5 = self.up5(torch.cat([up4, d5], 1))
+        up6 = self.up6(torch.cat([up5, d4], 1))
+        up7 = self.up7(torch.cat([up6, d3], 1))
+        up8 = self.up8(torch.cat([up7, d2], 1))
 
-        return self.final_up(torch.cat([up7, d1], 1))[:, :, :, 48:-48]
+        return self.final_up(torch.cat([up8, d1], 1))
 
 
 if __name__ == "__main__":
@@ -219,17 +224,17 @@ if __name__ == "__main__":
     print(device)
 
     def test_disc():
-        x = torch.randn((1, 1, 512, 672))
-        y = torch.randn((1, 1, 512, 672))
+        x = torch.randn((1, 1, 512, 512))
+        y = torch.randn((1, 1, 512, 512))
         model = Discriminator(in_channels=1)
-        summary(model, input_size=[(1, 1, 512, 672), (1, 1, 512, 672)])
+        summary(model, input_size=[(1, 1, 512, 512), (1, 1, 512, 512)])
         pred = model(x, y)
         print(pred.shape)
 
     def test_gen():
-        x = torch.randn((1, 1, 512, 672))
+        x = torch.randn((1, 1, 512, 512))
         model = Generator(in_channels=1, features=64)
-        summary(model, input_size=(1, 1, 512, 672))
+        summary(model, input_size=(1, 1, 512, 512))
         preds = model(x)
         print(preds.shape)
 

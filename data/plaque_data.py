@@ -19,6 +19,9 @@ def transform(sample, train):
         angle = random.randrange(-30, +30)
         spots, image = TF.rotate(spots, angle), TF.rotate(image, angle)
     # image = TF.normalize(image, mean=0.042, std=0.0156)
+    spots, image = TF.resize(spots, size=(512, 512), antialias=True), TF.resize(
+        image, size=(512, 512), antialias=True
+    )
 
     return (spots, image)
 
