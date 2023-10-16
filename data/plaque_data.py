@@ -16,8 +16,8 @@ def transform(sample, train):
             spots, image = TF.hflip(spots), TF.hflip(image)
         if 0.5 > random.random():
             spots, image = TF.vflip(spots), TF.vflip(image)
-        angle = random.randrange(-30, +30)
-        spots, image = TF.rotate(spots, angle), TF.rotate(image, angle)
+    # angle = random.randrange(-30, +30)
+    # spots, image = TF.rotate(spots, angle), TF.rotate(image, angle)
     # image = TF.normalize(image, mean=0.042, std=0.0156)
     spots, image = TF.resize(spots, size=(512, 512), antialias=True), TF.resize(
         image, size=(512, 512), antialias=True
@@ -80,7 +80,7 @@ class InfSpots2Plaque_Data(Dataset):
 if __name__ == "__main__":
     dataset = InfSpots2Plaque_Data("./dataset/M061/train")
     print("Dataset Length :-", len(dataset))
-    loader = DataLoader(dataset, batch_size=5)
+    loader = DataLoader(dataset, batch_size=5, shuffle=True)
     for x, y in loader:
         print("X Shape :-", x.shape)
         print("Y Shape :-", y.shape)

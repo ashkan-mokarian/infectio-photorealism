@@ -3,11 +3,15 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 import os
+import shutil
 from tqdm import tqdm
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
+
 
 from model.model import Discriminator, Generator
 from data.plaque_data import InfSpots2Plaque_Data
@@ -51,6 +55,12 @@ def train(netG, netD, train_dl, optimG, optimD, L1_Loss, BCE_Loss):
 
 
 def main():
+    SAVE_ROOT = os.path.join(config.OUTPUT_DIR, config.NAME)
+    CKPT_ROOT = os.path.join(SAVE_ROOT, "ckpts")
+    SAVE_EXAMPLE_IMAGE_ROOT = os.path.join(SAVE_ROOT, "examples")
+    CHECKPOINT_DISC = "disc-{0}.pth.tar"
+    CHECKPOINT_GEN = "gen-{0}.pth.tar"
+
     netD = Discriminator(in_channels=1).to(config.device)
     netG = Generator(in_channels=1).to(config.device)
     optimD = torch.optim.Adam(
@@ -79,32 +89,73 @@ def main():
         pin_memory=True,
     )
 
-    os.makedirs(config.SAVE_MODEL_ROOT, exist_ok=True)
-    os.makedirs(config.SAVE_EXAMPLE_IMAGE_ROOT, exist_ok=True)
-    for epoch in range(config.NUM_EPOCHS):
+    os.makedirs(CKPT_ROOT, exist_ok=True)
+    os.makedirs(SAVE_EXAMPLE_IMAGE_ROOT, exist_ok=True)
+    # Save config file for bookkeeping
+    shutil.copyfile(config.__file__, os.path.join(SAVE_ROOT, "config.py"))
+
+    writer = SummaryWriter(comment=config.NAME)
+
+    starting_epoch = 1
+    if config.LOAD_MODEL_EPOCH:
+        starting_epoch = config.LOAD_MODEL_EPOCH + 1
+        load_checkpoint(
+            os.path.join(
+                CKPT_ROOT,
+                CHECKPOINT_GEN.format(config.LOAD_MODEL_EPOCH),
+            ),
+            netG,
+            optimG,
+            config.LEARNING_RATE,
+        )
+        load_checkpoint(
+            os.path.join(
+                CKPT_ROOT,
+                CHECKPOINT_DISC.format(config.LOAD_MODEL_EPOCH),
+            ),
+            netD,
+            optimD,
+            config.LEARNING_RATE,
+        )
+        print(f"Loaded model from epoch {config.LOAD_MODEL_EPOCH}")
+
+    for epoch in range(starting_epoch, config.NUM_EPOCHS + 1):
         disc_loss, gen_loss = train(
             netG, netD, train_dl, optimG, optimD, L1_Loss, BCE_Loss
         )
         print(
-            f"Finished epoch {epoch+1}/{config.NUM_EPOCHS}: "
-            f"average disc-loss:{sum(disc_loss)/float(len(disc_loss)):.4f} "
-            f"average gen-loss:{sum(gen_loss)/float(len(gen_loss)):.4f}"
+            f"Finished epoch {epoch}/{config.NUM_EPOCHS}: "
+            f"average disc-loss:{sum(disc_loss)/float(len(disc_loss)):.6f} "
+            f"average gen-loss:{sum(gen_loss)/float(len(gen_loss)):.6f}"
         )
-        if (epoch + 1) % 5 == 0:
+        global_step = epoch * len(disc_loss)
+        writer.add_scalar(
+            "Loss/Train/Disc", sum(disc_loss) / float(len(disc_loss)), global_step
+        )
+        writer.add_scalar(
+            "Loss/Train/Gen", sum(gen_loss) / float(len(gen_loss)), global_step
+        )
+
+        if (epoch) % config.LOG_FREQ == 0:
             save_checkpoint(
                 netG,
                 optimG,
-                os.path.join(config.SAVE_MODEL_ROOT, config.CHECKPOINT_GEN),
+                os.path.join(CKPT_ROOT, CHECKPOINT_GEN.format(epoch)),
             )
             save_checkpoint(
                 netD,
                 optimD,
-                os.path.join(config.SAVE_MODEL_ROOT, config.CHECKPOINT_DISC),
+                os.path.join(CKPT_ROOT, CHECKPOINT_DISC.format(epoch)),
             )
-        if (epoch + 1) % 3 == 0:
-            save_some_examples(
-                netG, val_dl, epoch, fileroot=config.SAVE_EXAMPLE_IMAGE_ROOT
+            y_gen = save_some_examples(
+                netG, val_dl, epoch, fileroot=SAVE_EXAMPLE_IMAGE_ROOT
             )
+            writer.add_image(
+                "Train", make_grid(y_gen, nrow=4, normalize=True), global_step
+            )
+            writer.flush()
+
+    writer.close()
 
 
 if __name__ == "__main__":

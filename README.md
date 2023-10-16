@@ -10,6 +10,15 @@ model output, right: GT - ouput
 
 # How to use
 
+## Dataset
+
+## Training
+Set train parameters in config.py, then run `python train.py`.
+
+### on Slurm (hemera)
+
+## Prediction
+
 # To Do
 
 # References
