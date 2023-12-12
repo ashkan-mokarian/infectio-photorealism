@@ -34,7 +34,7 @@ class InfSpots2Plaque_Data(Dataset):
             f.split(".")[0] for f in os.listdir(self.root) if f.endswith(".csv")
         ]
         # Sort samples based on their number. Each 15 partition belongs to a
-        # different strain
+        # different strain. 1-15(WR), 16-30(dVGF), 31-45(dF11), 46-60(dVGF/dF11)
         self.n_samples.sort(key=lambda x: int(x.split("_")[1]))
         for f in self.n_samples:
             assert os.path.exists(
@@ -58,7 +58,9 @@ class InfSpots2Plaque_Data(Dataset):
             image = tif.pages[n_frame].asarray()
         # Read x, y pos of spots for the corresponding frame
         df = pd.read_csv(os.path.join(csv_path), low_memory=False)
-        df_frame = df[df["FRAME"] == str(n_frame)]
+        df = df.drop(index=df.index[:3])
+        df["FRAME"] = df["FRAME"].astype(int)
+        df_frame = df[df["FRAME"] == n_frame]
         pos_x = df_frame["POSITION_X"].astype(float).values
         pos_y = df_frame["POSITION_Y"].astype(float).values
         # positions in csv (trackmate) are given in micro meters and not pixels
@@ -68,9 +70,29 @@ class InfSpots2Plaque_Data(Dataset):
         pos = np.concatenate(
             (pos_x.reshape(-1, 1).astype(int), pos_y.reshape(-1, 1).astype(int)), axis=1
         )
-        # Create a numpy array with values for spots as one
+
+        # For each spot, we also want to know its time being already infected.
+        # We think this is a valuable information that defines brightness of spots.
+        track_id = df_frame["TRACK_ID"].values
+        min_frame_per_track = df.groupby("TRACK_ID")["FRAME"].min().reset_index()
+        min_frames_list = []
+        for i in track_id:
+            min_frame = min_frame_per_track[min_frame_per_track["TRACK_ID"] == i][
+                "FRAME"
+            ].values
+            if len(min_frame) == 1:
+                min_frames_list.append(int(min_frame[0]))
+            else:
+                raise ValueError("More than one min frame for a track id")
+        inf_frame_time = np.array(
+            [n_frame - min_frame for min_frame in min_frames_list]
+        )
+        spot_values = np.floor(inf_frame_time / (self.n_frames - 1) * 255)
+
+        # Create a numpy array with values for spots defined by how long they
+        # have been infected
         spots = np.zeros_like(image)
-        spots[pos[:, 1], pos[:, 0]] = 255
+        spots[pos[:, 1], pos[:, 0]] = spot_values
 
         # Transforms
         inputs = (spots, image)
